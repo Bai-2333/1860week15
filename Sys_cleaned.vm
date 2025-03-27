@@ -1,0 +1,251 @@
+//// COMPUTE THE BITWISE EXCLUSIVE OR.
+// This function takes two arguments and pushes the exclusive
+// OR of its bits onto the stack. This function implements the
+// formula:
+//    x XOR y = (x AND (NOT y)) OR ((NOT x) and y)
+// To call this function, you should:
+//   1. push the two arguments onto the stack; and
+//   2. call this function with `call Sys.xor 2`.
+// Before returning, the function pushes the result onto the
+// stack, so that, from the point of view of the callee, the
+// result is at the top of the stack.
+//
+function Sys.xor 0
+// Computes x ^ y, where x = argument[0] and y = argument[1].
+// Returns the result to the caller's stack top.
+
+// Formula: x ^ y = (x OR y) AND NOT(x AND y)
+
+// 1) Compute (x OR y)
+push argument 0
+push argument 1
+or
+
+// 2) Compute NOT(x AND y)
+push argument 0
+push argument 1
+and
+not
+
+// 3) Perform AND on these two results
+and
+
+// The top of the stack is now x ^ y, so just return
+return
+
+
+
+//// SHIFT A VALUE LEFT BY REPEATED ADDITION.
+// This function takes two arguments and pushes the first argument
+// shifted left by as many position as indicated by the second
+// argument. To call this function, you should:
+//   1. push the two arguments (number to be shifted and number of
+//      shift positions) onto the stack; and
+//   2. call this function with `call Sys.shiftLeft 2`.
+// Before returning, the function pushes the result onto the
+// stack, so that, from the point of view of the callee, the
+// result is at the top of the stack.
+//
+function Sys.shiftLeft 2
+// local 0 => x           (the value to be shifted)
+// local 1 => shiftCount  (the number of shifts)
+
+// 1) Move x, y into local variables x, shiftCount
+push argument 0
+pop local 0
+push argument 1
+pop local 1
+
+// 2) While shiftCount > 0, do x = x + x and then shiftCount--
+(LOOP_START)
+    push local 1
+    push constant 0
+    eq              // Is shiftCount == 0?
+    if-goto DONE
+
+    // x = x + x
+    push local 0
+    push local 0
+    add
+    pop local 0
+
+    // shiftCount--
+    push local 1
+    push constant 1
+    sub
+    pop local 1
+
+    goto LOOP_START
+
+(DONE)
+// 3) Return the computed x (i.e., x * 2^y)
+push local 0
+return
+
+
+
+//// COMPUTE THE PARITY OF THE BOTTOM 15 BITS OF AN INTEGER.
+// This function takes one arguments and pushes the parity of
+// the fifteen right-most bits onto the stack. The possible output
+// values are 1, if the number of 1s in the right-most fifteen
+// bits is odd, or 0, if the number of 1s in the right-most
+// fifteen bits is even. Here is some example output:
+//
+//     INPUT (binary)  | OUT |         NOTES
+//    -----------------+-----+-----------------------
+//    1000000000000000 |  0  | Left-most bit ignored.
+//    0000000000000001 |  1  |
+//    1000000000000001 |  1  | Left-most bit ignored.
+//    0111111111011111 |  0  |
+//    0111111111111111 |  1  |
+//    1111111111111111 |  1  | Left-most bit ignored.
+//
+// To call this function, you should:
+//   1. push the argument onto the stack; and
+//   2. call this function with `call Sys.computeParity 1`.
+// Before returning, the function pushes the result onto the
+// stack, so that, from the point of view of the callee, the
+// result is at the top of the stack.
+//
+function Sys.computeParity 3
+// local 0 => i          (bit index, 0..14)
+// local 1 => bitmask    (1 << i)
+// local 2 => parityBit  (accumulates parity: 0 or 1)
+
+// Initialize parityBit = 0
+push constant 0
+pop local 2
+
+// Initialize i = 0
+push constant 0
+pop local 0
+
+// Loop over the 15 right-most bits (i = 0..14)
+(LOOP)
+    // if i >= 15, exit loop
+    push local 0
+    push constant 15
+    lt
+    if-goto PROCESS
+    goto END
+
+(PROCESS)
+    // bitmask = 1 << i
+    push constant 1
+    push local 0
+    call Sys.shiftLeft 2   // shiftLeft(1, i)
+    pop local 1            // store in bitmask
+
+    // Check if (argument[0] & bitmask) != 0
+    push argument 0
+    push local 1
+    and
+    push constant 0
+    eq
+    if-goto NEXT           // if == 0, skip parity toggle
+
+    // If that bit is set, flip parityBit via XOR with 1
+    push local 2
+    push constant 1
+    call Sys.xor 2
+    pop local 2
+
+(NEXT)
+    // i++
+    push local 0
+    push constant 1
+    add
+    pop local 0
+
+    goto LOOP
+
+(END)
+// Return parityBit (0 or 1)
+push local 2
+return
+
+
+//// SET LEFT-MOST BIT TO PARITY BIT.
+// This function takes one 16-bit string and pushes onto the stack
+// the same bit string with the left-most bit set to the parity
+// bit of the 15 right-most bits. Here is some example output:
+//
+//     INPUT (binary)  | OUTPUT (binary)  |         NOTES
+//    -----------------+------------------+-----------------------
+//    1000000000000000 | 0000000000000000 | Left-most bit ignored.
+//    0000000000000001 | 1000000000000001 |
+//    1000000000000001 | 1000000000000001 | Left-most bit ignored.
+//    0111111111011111 | 0111111111011111 |
+//    0111111111111111 | 1111111111111111 |
+//    1111111111111111 | 1111111111111111 | Left-most bit ignored.
+//
+// To call this function, you should:
+//   1. push the the argument onto the stack; and
+//   2. call this function with `call Sys.encode 1`.
+// Before returning, the function pushes the result onto the
+// stack, so that, from the point of view of the callee, the
+// result is at the top of the stack.
+//
+function Sys.encode 3
+// local 0 => inputVal   (stores the original input)
+// local 1 => parityBit  (stores the parity: 0 or 1)
+// local 2 => mask       (mask for the highest bit: 1 << 15)
+
+// 1) Read the input into local 0
+push argument 0
+pop local 0
+
+// 2) Compute the parity of the input’s lower 15 bits and store it in local 1
+push argument 0
+call Sys.computeParity 1
+pop local 1
+
+// 3) Generate the highest-bit mask (1 << 15)
+push constant 1
+push constant 15
+call Sys.shiftLeft 2
+pop local 2
+
+// 4) If parityBit == 1, set the highest bit; otherwise clear it
+push local 1
+push constant 1
+eq
+if-goto SET_BIT
+goto CLEAR_BIT
+
+(SET_BIT)
+    // Set the highest bit: inputVal |= mask
+    push local 0
+    push local 2
+    or
+    pop local 0
+    goto DONE
+
+(CLEAR_BIT)
+    // Clear the highest bit: inputVal &= ~mask
+    push local 0
+    push local 2
+    not
+    and
+    pop local 0
+    goto DONE
+
+(DONE)
+// 5) Push the updated value onto the stack as the return value
+push local 0
+return
+
+
+
+// The emulator will start executing from here. You can modify
+// the code below while testing and debugging your code, but
+// please revert your changes before submitting to Gradescope;
+// otherwise, your submission will most likely fail all tests.
+//
+// A better way to test your code is to use the supplied file
+//   Sys.tst
+// with the virtual machine emulator. Please do not submit this
+// file to Gradescope, as this will cause your submission to be
+// rejected.
+//
+function Sys.init 0
