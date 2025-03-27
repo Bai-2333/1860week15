@@ -124,8 +124,5 @@ label END_ENCODE
 push temp 0
 return
 
-// Clean init function
-function Sys.init 0
-push constant 31
-call Sys.encode 1
+
 
