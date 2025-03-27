@@ -1,0 +1,131 @@
+
+// Sys.xor: Computes x XOR y = (x OR y) AND NOT(x AND y)
+function Sys.xor 0
+push argument 0
+push argument 1
+or
+push argument 0
+push argument 1
+and
+not
+and
+return
+
+// Sys.shiftLeft: Computes x << y by doubling x y times
+function Sys.shiftLeft 0
+// Move arguments to temp
+push argument 0
+pop temp 0
+push argument 1
+pop temp 1
+
+label SHIFT_LOOP
+push temp 1
+push constant 0
+eq
+if-goto SHIFT_DONE
+
+// x = x + x
+push temp 0
+push temp 0
+add
+pop temp 0
+
+// y--
+push temp 1
+push constant 1
+sub
+pop temp 1
+
+goto SHIFT_LOOP
+label SHIFT_DONE
+push temp 0
+return
+
+// Sys.computeParity: Computes parity of lowest 15 bits
+function Sys.computeParity 0
+push constant 0
+pop temp 0       // i = 0
+push constant 0
+pop temp 1       // parity = 0
+
+label PARITY_LOOP
+push temp 0
+push constant 15
+eq
+if-goto PARITY_DONE
+
+// mask = 1 << i
+push constant 1
+push temp 0
+call Sys.shiftLeft 2
+pop temp 2
+
+// if (arg0 & mask) != 0, flip parity
+push argument 0
+push temp 2
+and
+push constant 0
+eq
+if-goto SKIP_FLIP
+
+push temp 1
+push constant 1
+call Sys.xor 2
+pop temp 1
+
+label SKIP_FLIP
+// i++
+push temp 0
+push constant 1
+add
+pop temp 0
+goto PARITY_LOOP
+
+label PARITY_DONE
+push temp 1
+return
+
+// Sys.encode: Sets left-most bit to parity of lowest 15 bits
+function Sys.encode 0
+push argument 0
+pop temp 0         // input value
+
+push argument 0
+call Sys.computeParity 1
+pop temp 1         // parity bit
+
+push constant 1
+push constant 15
+call Sys.shiftLeft 2
+pop temp 2         // mask for MSB
+
+push temp 1
+push constant 1
+eq
+if-goto SET_MSB
+goto CLEAR_MSB
+
+label SET_MSB
+push temp 0
+push temp 2
+or
+pop temp 0
+goto END_ENCODE
+
+label CLEAR_MSB
+push temp 0
+push temp 2
+not
+and
+pop temp 0
+
+label END_ENCODE
+push temp 0
+return
+
+// Clean init function
+function Sys.init 0
+push constant 31
+call Sys.encode 1
+pop temp 0
