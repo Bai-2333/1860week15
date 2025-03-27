@@ -1,147 +1,106 @@
- function Sys.xor 0
-    // Get the two arguments from the stack
-    pop temp 0  // Store return address in temp 0
-    pop temp 1  // Store second argument in temp 1
-    pop temp 2  // Store first argument in temp 2
-    
-    // Compute XOR: (a AND NOT b) OR (NOT a AND b)
-    push temp 2
-    push temp 1
-    not
-    and
-    
-    push temp 2
-    not
-    push temp 1
-    and
-    
-    or
-    
-    // Push return address back and return
-    push temp 0
-    return
+function Sys.xor 0
+  push argument 0
+  push argument 1
+  or
+  push argument 0
+  push argument 1
+  and
+  not
+  and
+  return
 
 function Sys.shiftLeft 2
-    // Initialize local variables
-    pop temp 0  // Store return address
-    pop local 1 // Store shift amount (y)
-    pop local 0 // Store value to shift (x)
-    
-    label SHIFT_LOOP
-    push local 1
-    push constant 0
-    eq
-    if-goto END_LOOP
-    
-    // Double x (shift left by 1)
-    push local 0
-    push local 0
-    add
-    pop local 0
-    
-    // Decrement shift amount
-    push local 1
-    push constant 1
-    sub
-    pop local 1
-    
-    goto SHIFT_LOOP
-    
-    label END_LOOP
-    // Push result to stack
-    push local 0
-    
-    // Return
-    push temp 0
-    return
+  push argument 0
+  pop local 0
+  push argument 1
+  pop local 1
+label LOOP
+  push local 1
+  push constant 0
+  eq
+  if-goto DONE
+  push local 0
+  push local 0
+  add
+  pop local 0
+  push local 1
+  push constant 1
+  sub
+  pop local 1
+  goto LOOP
+label DONE
+  push local 0
+  return
 
 function Sys.computeParity 3
-    // Initialize variables
-    pop temp 0  // Store return address
-    pop local 0  // Store input value
-    
-    push constant 0
-    pop local 1  // parityBit = 0
-    
-    push constant 0
-    pop local 2  // i = 0
-    
-    label PARITY_LOOP
-    push local 2
-    push constant 15
-    eq
-    if-goto END_PARITY
-    
-    // Create bitmask: 1 << i
-    push constant 1
-    push local 2
-    call Sys.shiftLeft 2
-    
-    // Get current bit: inputString & bitmask
-    push local 0
-    and
-    
-    // If bit is set, XOR with parityBit
-    push constant 0
-    eq
-    not
-    if-goto UPDATE_PARITY
-    goto NEXT_ITERATION
-    
-    label UPDATE_PARITY
-    push local 1
-    push constant 1
-    call Sys.xor 2
-    pop local 1
-    
-    label NEXT_ITERATION
-    // Increment i
-    push local 2
-    push constant 1
-    add
-    pop local 2
-    
-    goto PARITY_LOOP
-    
-    label END_PARITY
-    // Push result to stack
-    push local 1
-    
-    // Return
-    push temp 0
-    return
+  push constant 0
+  pop local 2
+  push constant 0
+  pop local 0
+label LOOP
+  push local 0
+  push constant 15
+  lt
+  if-goto PROCESS
+  goto END
+label PROCESS
+  push constant 1
+  push local 0
+  call Sys.shiftLeft 2
+  pop local 1
+  push argument 0
+  push local 1
+  and
+  push constant 0
+  eq
+  if-goto NEXT
+  push local 2
+  push constant 1
+  call Sys.xor 2
+  pop local 2
+label NEXT
+  push local 0
+  push constant 1
+  add
+  pop local 0
+  goto LOOP
+label END
+  push local 2
+  return
 
-function Sys.encode 1
-    // Get input and store it
-    pop temp 0  // Store return address
-    pop local 0  // Store input value
-    
-    // Compute parity
-    push local 0
-    call Sys.computeParity 1
-    
-    // If parity is 1, set MSB; else clear it
-    pop temp 1
-    push temp 1
-    push constant 0
-    eq
-    if-goto CLEAR_MSB
-    
-    // Set MSB (bit 15)
-    push local 0
-    push constant 32768  // 2^15 (1000000000000000)
-    or
-    goto PUSH_RESULT
-    
-    label CLEAR_MSB
-    // Clear MSB
-    push local 0
-    push constant 32767  // 0111111111111111
-    and
-    
-    label PUSH_RESULT
-    // Push result to stack
-    // Return
-    push temp 0
-    return
+function Sys.encode 3
+  push argument 0
+  pop local 0
+  push argument 0
+  call Sys.computeParity 1
+  pop local 1
+  push constant 1
+  push constant 15
+  call Sys.shiftLeft 2
+  pop local 2
+  push local 1
+  push constant 1
+  eq
+  if-goto SET_BIT
+  goto CLEAR_BIT
+label SET_BIT
+  push local 0
+  push local 2
+  or
+  pop local 0
+  goto DONE
+label CLEAR_BIT
+  push local 0
+  push local 2
+  not
+  and
+  pop local 0
+  goto DONE
+label DONE
+  push local 0
+  return
 
+function Sys.init 0
+    call Sys.encode 1
+label WHILE
+    goto WHILE
